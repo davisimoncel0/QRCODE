@@ -1,251 +1,229 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>QR-Quiz — Leitor Único com Registro</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Quiz Dinâmico</title>
 <style>
-  :root {
-    --bg:#0b0c10; --card:#111318; --muted:#9aa1ac; --text:#e7e9ee; --accent:#7cd992;
-  }
-  *{box-sizing:border-box;}
-  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial;background:var(--bg); color:var(--text);}
-  .wrap{max-width:1100px;margin:0 auto;padding:20px;}
-  .grid{display:grid;gap:16px;}
-  .card{background:var(--card);border:1px solid #20232a;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
-  h1{font-size:clamp(20px,2.6vw,34px);margin:0 0 6px;}
-  .sub{color:var(--muted);margin:0 0 16px;}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-  label{font-size:14px;color:var(--muted);}
-  input[type="text"], select, button{height:40px;border-radius:10px;border:1px solid #2a2f3a;background:#0f1116;color:var(--text);padding:0 12px;}
-  input[type="text"]{min-width:220px;}
-  button{cursor:pointer;}
-  button.primary{background:linear-gradient(180deg,#2a9d8f,#238b7f);border:0;}
-  button.ghost{background:#0f1116;}
-  button:disabled{opacity:.5;cursor:not-allowed;}
-  .pill{background:#131721;border:1px solid #252a35;border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted);}
-  .muted{color:var(--muted);}
-  .success{color:var(--accent);}
-  .video-wrap{position:relative;display:grid;gap:10px;}
-  video{width:100%;max-height:54vh;background:#000;border-radius:14px;}
-  canvas{width:100%;max-height:54vh;background:#000;border-radius:14px;position:absolute;top:0;left:0;}
-  .badge{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 10px;border-radius:999px;background:#141823;border:1px solid #273047;}
-  .answer{font-size: clamp(42px, 8vw, 84px); font-weight:900;letter-spacing:.02em;}
-  .qr-box{display:flex;flex-direction:column;gap:12px;align-items:flex-start;}
-  #qrOut{background:#fff;padding:14px;border-radius:12px;}
-  #qrOut canvas,#qrOut img{width:240px;height:240px;}
-  .foot{margin-top:6px;font-size:12px;color:var(--muted);}
-  select,input,button{margin-right:8px;}
+:root {
+  --bg:#0b0c10; --card:#111318; --muted:#9aa1ac; --text:#e7e9ee; --accent:#7cd992;
+}
+body{margin:0;font-family:system-ui;background:var(--bg);color:var(--text);}
+.wrap{max-width:1200px;margin:0 auto;padding:20px;}
+.card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:16px;}
+input,button,select{padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid #2a2f3a;background:#0f1116;color:var(--text);}
+button{cursor:pointer;}
+button.primary{background:linear-gradient(180deg,#2a9d8f,#238b7f);border:0;color:#fff;}
+.grid{display:grid;gap:16px;}
+video{width:100%;max-height:300px;background:#000;border-radius:12px;}
+canvas{display:none;}
+ul{padding-left:16px;}
+.answer{font-weight:bold;color:var(--accent);}
 </style>
 </head>
 <body>
-<div class="wrap grid">
-  <header>
-    <h1>QR-Quiz — Responda com QR</h1>
-    <p class="sub">Cadastre turmas, alunos e QRs. Use o leitor para registrar a alternativa escolhida.</p>
-  </header>
+<div class="wrap">
 
-  <!-- Seção de cadastro de turma/aluno -->
+  <h1>QR Quiz Dinâmico</h1>
+
+  <!-- Cadastro de Turmas -->
   <div class="card">
-    <h3>Gerenciar Turmas e Alunos</h3>
-    <div class="row">
-      <input type="text" id="newClassName" placeholder="Nome da turma"/>
-      <button id="addClassBtn" class="primary">Adicionar Turma</button>
-    </div>
-    <select id="classSelect"></select>
-    <div class="row">
-      <input type="text" id="newStudentName" placeholder="Nome do aluno"/>
-      <button id="addStudentBtn" class="primary">Adicionar Aluno</button>
-    </div>
-    <div id="studentList"></div>
+    <h3>Cadastro de Turma</h3>
+    <input type="text" id="turmaName" placeholder="Nome da turma">
+    <button id="addTurma" class="primary">Adicionar Turma</button>
+    <div id="turmasList"></div>
   </div>
 
-  <!-- Seção de geração de QR -->
+  <!-- Cadastro de Alunos -->
+  <div class="card">
+    <h3>Cadastro de Alunos</h3>
+    <label>Turma:
+      <select id="turmaSelect"></select>
+    </label><br>
+    <input type="text" id="alunoName" placeholder="Nome do aluno">
+    <button id="addAluno" class="primary">Adicionar Aluno</button>
+    <div id="alunosList"></div>
+  </div>
+
+  <!-- Gerar QR -->
   <div class="card">
     <h3>Gerar QR do Aluno</h3>
-    <div class="qr-box">
-      <div class="row">
-        <input id="qrText" type="text" placeholder="Texto do QR (Aluno)"/>
-        <button id="genQr" class="primary">Gerar QR</button>
-        <button id="dlQr" class="ghost" disabled>Baixar PNG</button>
-        <button id="printQr" class="ghost" disabled>Imprimir</button>
-      </div>
-      <div id="qrOut"></div>
-      <div class="foot">Cada aluno tem seu QR. Não altera se refizer a escolha.</div>
-    </div>
+    <label>Escolha o aluno:
+      <select id="alunoSelect"></select>
+    </label>
+    <button id="genQr" class="primary">Gerar QR</button>
+    <div id="qrOut"></div>
   </div>
 
-  <!-- Seção de leitura única -->
-  <div class="card video-wrap">
-    <h3>Leitura do QR</h3>
-    <video id="video" playsinline muted></video>
-    <canvas id="canvas" aria-hidden="true"></canvas>
-    <div class="row" style="gap:10px; margin-top:10px;">
-      <span>Aluno detectado: <strong id="detected">—</strong></span>
-      <span>Alternativa: <strong id="altRead">—</strong></span>
+  <!-- Leitura QR -->
+  <div class="card">
+    <h3>Leitura do QR Code</h3>
+    <video id="video" autoplay muted playsinline></video>
+    <div>
+      Alternativa detectada: <span id="answer" class="answer">—</span>
     </div>
-    <div class="row" style="gap:6px; margin-top:6px;">
-      <button class="primary" onclick="setAnswer('A')">A</button>
-      <button class="primary" onclick="setAnswer('B')">B</button>
-      <button class="primary" onclick="setAnswer('C')">C</button>
-      <button class="primary" onclick="setAnswer('D')">D</button>
-      <button class="ghost" onclick="resetAnswer()">Refazer Resposta</button>
-    </div>
-    <div class="row" style="margin-top:10px;">
-      <button id="startBtn" class="primary">📷 Iniciar câmera</button>
-      <button id="stopBtn" class="ghost" disabled>⏹ Parar</button>
-    </div>
+    <button id="resetAnswer">Refazer Escolha</button>
   </div>
+
+  <!-- Alunos e respostas -->
+  <div class="card">
+    <h3>Respostas dos Alunos</h3>
+    <div id="respostas"></div>
+  </div>
+
 </div>
 
+<!-- Bibliotecas -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+
 <script>
-/* ===========================
-  Dados persistentes
-=========================== */
-let data = JSON.parse(localStorage.getItem('qrQuizData')||'{"classes":[]}');
-let currentClassIndex = null;
-let currentDetectedStudent = null;
+// =======================
+// Estrutura de dados
+// =======================
+let data = JSON.parse(localStorage.getItem('qrquizData')) || { turmas: [] };
 
-function saveData(){ localStorage.setItem('qrQuizData', JSON.stringify(data)); }
-
-/* ===========================
-  Gerenciar Turmas e Alunos
-=========================== */
-const classSelect = document.getElementById('classSelect');
-const studentList = document.getElementById('studentList');
-const newClassName = document.getElementById('newClassName');
-const newStudentName = document.getElementById('newStudentName');
-function renderClasses(){
-  classSelect.innerHTML = data.classes.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');
-  currentClassIndex = classSelect.value;
-  renderStudents();
+// =======================
+// Utilitários
+// =======================
+function saveData(){ localStorage.setItem('qrquizData', JSON.stringify(data)); }
+function updateTurmas(){
+  const turmaSelect = document.getElementById('turmaSelect');
+  turmaSelect.innerHTML = data.turmas.map((t,i)=>`<option value="${i}">${t.nome}</option>`).join('');
+  document.getElementById('turmasList').innerHTML = data.turmas.map(t=>`<div>${t.nome}</div>`).join('');
+  updateAlunos();
 }
-function renderStudents(){
-  if(currentClassIndex===null) { studentList.innerHTML=''; return; }
-  const students = data.classes[currentClassIndex].students;
-  studentList.innerHTML = students.map(s=>`<div class="row">${s.name} — QR: ${s.qrText} — Alternativa: ${s.answered||'—'}</div>`).join('');
+function updateAlunos(){
+  const turmaIndex = document.getElementById('turmaSelect').value;
+  const alunoSelect = document.getElementById('alunoSelect');
+  alunoSelect.innerHTML = '';
+  document.getElementById('alunosList').innerHTML = '';
+  if(turmaIndex===null || turmaIndex===undefined) return;
+  const turma = data.turmas[turmaIndex];
+  turma.alunos = turma.alunos || [];
+  turma.alunos.forEach((a,i)=>{
+    alunoSelect.innerHTML += `<option value="${i}">${a.nome}</option>`;
+    document.getElementById('alunosList').innerHTML += `<div>${a.nome} - QR: ${a.qr || '—'} - Resposta: ${a.resposta || '—'}</div>`;
+  });
+  updateRespostas();
 }
-document.getElementById('addClassBtn').onclick=()=>{
-  if(!newClassName.value) return;
-  data.classes.push({name:newClassName.value, students:[]});
-  newClassName.value='';
-  renderClasses();
-  saveData();
-};
-classSelect.onchange=()=>{ currentClassIndex=classSelect.value; renderStudents(); }
-document.getElementById('addStudentBtn').onclick=()=>{
-  if(currentClassIndex===null || !newStudentName.value) return;
-  const name = newStudentName.value;
-  const qrTextVal = name; // inicial QR = nome do aluno
-  data.classes[currentClassIndex].students.push({name, qrText:qrTextVal, answered:null});
-  newStudentName.value='';
-  renderStudents();
-  saveData();
-  qrText.value = qrTextVal; generateQR();
-};
+function updateRespostas(){
+  const resDiv = document.getElementById('respostas');
+  resDiv.innerHTML = '';
+  data.turmas.forEach(t=>{
+    if(!t.alunos) return;
+    t.alunos.forEach(a=>{
+      resDiv.innerHTML += `<div>${a.nome} (${t.nome}) - Resposta: ${a.resposta || '—'}</div>`;
+    });
+  });
+}
 
-/* ===========================
-  QR Generator
-=========================== */
-const qrOut = document.getElementById('qrOut');
-const qrText = document.getElementById('qrText');
-const genQr = document.getElementById('genQr');
-const dlQr = document.getElementById('dlQr');
-const printQr = document.getElementById('printQr');
+// =======================
+// Eventos Cadastro
+// =======================
+document.getElementById('addTurma').addEventListener('click',()=>{
+  const nome = document.getElementById('turmaName').value.trim();
+  if(!nome) return alert('Digite nome da turma');
+  data.turmas.push({nome, alunos:[]});
+  saveData(); updateTurmas();
+  document.getElementById('turmaName').value='';
+});
+
+document.getElementById('addAluno').addEventListener('click',()=>{
+  const alunoNome = document.getElementById('alunoName').value.trim();
+  const turmaIndex = document.getElementById('turmaSelect').value;
+  if(!alunoNome) return alert('Digite nome do aluno');
+  if(turmaIndex===null) return alert('Selecione turma');
+  data.turmas[turmaIndex].alunos.push({nome:alunoNome});
+  saveData(); updateAlunos();
+  document.getElementById('alunoName').value='';
+});
+
+// =======================
+// Gerar QR
+// =======================
 let qrInstance = null;
-function generateQR(){
+document.getElementById('genQr').addEventListener('click',()=>{
+  const turmaIndex = document.getElementById('turmaSelect').value;
+  const alunoIndex = document.getElementById('alunoSelect').value;
+  if(turmaIndex===null || alunoIndex===null) return alert('Selecione aluno');
+  const aluno = data.turmas[turmaIndex].alunos[alunoIndex];
+  // Conteúdo do QR = nome do aluno
+  const qrOut = document.getElementById('qrOut');
   qrOut.innerHTML='';
-  qrInstance = new QRCode(qrOut, {text: qrText.value||'QR', width:240, height:240, correctLevel: QRCode.CorrectLevel.H});
-  dlQr.disabled=false; printQr.disabled=false;
-}
-function downloadQR(){
-  const img = qrOut.querySelector('img') || qrOut.querySelector('canvas');
-  if(!img) return;
-  let dataURL = img.tagName==='IMG'?img.src:img.toDataURL('image/png');
-  const a = document.createElement('a'); a.href=dataURL; a.download=`qr-${qrText.value}.png`; a.click();
-}
-function printQR(){
-  const w = window.open('', 'printqr');
-  const src = qrOut.querySelector('img')?.src || qrOut.querySelector('canvas')?.toDataURL('image/png');
-  w.document.write(`<img src="${src}" style="width:380px;height:380px"/>`); w.document.close(); w.focus(); w.print(); w.close();
-}
-genQr.onclick=generateQR; dlQr.onclick=downloadQR; printQr.onclick=printQR;
+  qrInstance = new QRCode(qrOut,{ text: aluno.nome, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
+  aluno.qr = aluno.nome;
+  saveData();
+  updateAlunos();
+});
 
-/* ===========================
-  Camera + Leitura
-=========================== */
+// =======================
+// Leitura QR
+// =======================
 const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
+const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-const detected = document.getElementById('detected');
-const altRead = document.getElementById('altRead');
-
-let stream=null, running=false, rafId=null;
+let stream = null;
+let answerEl = document.getElementById('answer');
 
 async function startCamera(){
-  if(!navigator.mediaDevices?.getUserMedia) return alert('Seu navegador não suporta câmera');
-  stopCamera();
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    video.srcObject = stream; await video.play();
-    canvas.width=video.videoWidth; canvas.height=video.videoHeight;
-    running=true; startBtn.disabled=true; stopBtn.disabled=false;
-    scanLoop();
-  }catch(e){ console.error(e); alert('Falha ao abrir câmera') }
+  if(!navigator.mediaDevices.getUserMedia) return alert('Sem getUserMedia');
+  stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }});
+  video.srcObject = stream;
+  requestAnimationFrame(scan);
 }
-function stopCamera(){
-  running=false; startBtn.disabled=false; stopBtn.disabled=true;
-  if(rafId) cancelAnimationFrame(rafId);
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  detected.textContent='—'; altRead.textContent='—';
-}
-startBtn.onclick=startCamera; stopBtn.onclick=stopCamera;
+startCamera();
 
-function scanLoop(){
-  if(!running) return;
-  ctx.drawImage(video,0,0,canvas.width,canvas.height);
-  try{
+function scan(){
+  if(video.readyState===video.HAVE_ENOUGH_DATA){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
     const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code = jsQR(imgData.data, imgData.width, imgData.height, {inversionAttempts:'dontInvert'});
-    if(code){
-      const qrValue = code.data;
-      detected.textContent=qrValue;
-      if(currentClassIndex!==null){
-        currentDetectedStudent = data.classes[currentClassIndex].students.find(s=>s.qrText===qrValue);
-        altRead.textContent = currentDetectedStudent?.answered || '—';
+    const code = jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'dontInvert'});
+    if(code && code.data){
+      const alunoNome = code.data;
+      // achar aluno cadastrado
+      let alunoObj = null;
+      data.turmas.forEach(t=>{
+        t.alunos.forEach(a=>{
+          if(a.nome===alunoNome) alunoObj = a;
+        });
+      });
+      if(alunoObj){
+        // Determinar alternativa pela posição
+        const loc = code.location;
+        const dx = loc.topRightCorner.x - loc.topLeftCorner.x;
+        const dy = loc.topRightCorner.y - loc.topLeftCorner.y;
+        let deg = Math.atan2(dy,dx)*180/Math.PI;
+        if(deg<0) deg+=360;
+        const idx = Math.round(deg/90)%4;
+        const alternativa = ['A','B','C','D'][idx];
+        alunoObj.resposta = alternativa;
+        answerEl.textContent = `${alunoObj.nome} → ${alternativa}`;
+        saveData();
+        updateRespostas();
       }
-    }else{
-      currentDetectedStudent=null;
-      detected.textContent='—'; altRead.textContent='—';
     }
-  }catch(e){console.error(e);}
-  rafId=requestAnimationFrame(scanLoop);
+  }
+  requestAnimationFrame(scan);
 }
 
-/* ===========================
-  Registro alternativa
-=========================== */
-function setAnswer(letter){
-  if(!currentDetectedStudent) return alert('Nenhum aluno detectado');
-  currentDetectedStudent.answered=letter;
-  altRead.textContent=letter;
-  saveData(); renderStudents();
-}
-function resetAnswer(){
-  if(!currentDetectedStudent) return alert('Nenhum aluno detectado');
-  currentDetectedStudent.answered=null;
-  altRead.textContent='—';
-  saveData(); renderStudents();
-}
+// =======================
+// Refazer escolha
+// =======================
+document.getElementById('resetAnswer').addEventListener('click',()=>{
+  data.turmas.forEach(t=>{
+    t.alunos.forEach(a=>{
+      if(a.resposta) a.resposta = null;
+    });
+  });
+  answerEl.textContent='—';
+  saveData();
+  updateRespostas();
+});
 
-/* ===========================
-  Inicialização
-=========================== */
-renderClasses();
+updateTurmas();
 </script>
 </body>
 </html>
