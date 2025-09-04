@@ -51,6 +51,9 @@ ul{padding-left:16px;}
     </label>
     <button id="genQr" class="primary">Gerar QR</button>
     <div id="qrOut"></div>
+    <div>
+      <strong>Lado A:</strong> cima | <strong>B:</strong> direita | <strong>C:</strong> baixo | <strong>D:</strong> esquerda
+    </div>
   </div>
 
   <!-- Leitura QR -->
@@ -85,14 +88,12 @@ let data = JSON.parse(localStorage.getItem('qrquizData')) || { turmas: [] };
 // Utilitários
 // =======================
 function saveData(){ localStorage.setItem('qrquizData', JSON.stringify(data)); }
-
 function updateTurmas(){
   const turmaSelect = document.getElementById('turmaSelect');
   turmaSelect.innerHTML = data.turmas.map((t,i)=>`<option value="${i}">${t.nome}</option>`).join('');
   document.getElementById('turmasList').innerHTML = data.turmas.map(t=>`<div>${t.nome}</div>`).join('');
   updateAlunos();
 }
-
 function updateAlunos(){
   const turmaIndex = document.getElementById('turmaSelect').value;
   const alunoSelect = document.getElementById('alunoSelect');
@@ -107,7 +108,6 @@ function updateAlunos(){
   });
   updateRespostas();
 }
-
 function updateRespostas(){
   const resDiv = document.getElementById('respostas');
   resDiv.innerHTML = '';
@@ -141,7 +141,7 @@ document.getElementById('addAluno').addEventListener('click',()=>{
 });
 
 // =======================
-// Gerar QR com letras A/B/C/D visíveis
+// Gerar QR
 // =======================
 let qrInstance = null;
 document.getElementById('genQr').addEventListener('click',()=>{
@@ -149,33 +149,21 @@ document.getElementById('genQr').addEventListener('click',()=>{
   const alunoIndex = document.getElementById('alunoSelect').value;
   if(turmaIndex===null || alunoIndex===null) return alert('Selecione aluno');
   const aluno = data.turmas[turmaIndex].alunos[alunoIndex];
-
-  // Limpar container
   const qrOut = document.getElementById('qrOut');
   qrOut.innerHTML='';
-
-  // Gerar QR padrão com nome do aluno
-  qrInstance = new QRCode(qrOut,{ text: aluno.nome, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
+  qrInstance = new QRCode(qrOut,{
+    text: aluno.nome,
+    width: 200,
+    height: 200,
+    correctLevel: QRCode.CorrectLevel.H
+  });
   aluno.qr = aluno.nome;
   saveData();
   updateAlunos();
-
-  // Adicionar letras nos quatro lados visualmente
-  const canvasEl = qrOut.querySelector('canvas');
-  if(canvasEl){
-    const ctx = canvasEl.getContext('2d');
-    ctx.fillStyle = 'red';
-    ctx.font = 'bold 18px Arial';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText('A', 100, 10);   // topo
-    ctx.fillText('B', 190, 100);  // direita
-    ctx.fillText('C', 100, 190);  // baixo
-    ctx.fillText('D', 10, 100);   // esquerda
-  }
 });
 
 // =======================
-// Leitura QR dinâmica
+// Leitura QR
 // =======================
 const video = document.getElementById('video');
 const canvas = document.createElement('canvas');
@@ -187,18 +175,40 @@ async function startCamera(){
   if(!navigator.mediaDevices.getUserMedia) return alert('Sem getUserMedia');
   stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }});
   video.srcObject = stream;
-  requestAnimationFrame(scanQR);
+  requestAnimationFrame(scan);
 }
 startCamera();
 
-function scanQR(){
+// Função para mapear QR pelo lado (posição)
+function mapAngleToAlternative(code){
+  const loc = code.location;
+  const cx = (loc.topLeftCorner.x + loc.topRightCorner.x + loc.bottomRightCorner.x + loc.bottomLeftCorner.x)/4;
+  const cy = (loc.topLeftCorner.y + loc.topRightCorner.y + loc.bottomRightCorner.y + loc.bottomLeftCorner.y)/4;
+
+  const vectors = [
+    {x: loc.topLeftCorner.x - cx, y: loc.topLeftCorner.y - cy, alt:'A'},
+    {x: loc.topRightCorner.x - cx, y: loc.topRightCorner.y - cy, alt:'B'},
+    {x: loc.bottomRightCorner.x - cx, y: loc.bottomRightCorner.y - cy, alt:'C'},
+    {x: loc.bottomLeftCorner.x - cx, y: loc.bottomLeftCorner.y - cy, alt:'D'}
+  ];
+
+  // encontrar o vetor mais próximo de “para cima” (y negativo)
+  let best = vectors[0];
+  let minAngle = Math.abs(Math.atan2(vectors[0].y, vectors[0].x) - (-Math.PI/2));
+  for(let i=1;i<vectors.length;i++){
+    const angle = Math.abs(Math.atan2(vectors[i].y, vectors[i].x) - (-Math.PI/2));
+    if(angle<minAngle){ minAngle = angle; best=vectors[i]; }
+  }
+  return best.alt;
+}
+
+function scan(){
   if(video.readyState===video.HAVE_ENOUGH_DATA){
-    // reduzir tamanho do canvas para agilizar leitura
-    canvas.width = video.videoWidth/2;
-    canvas.height = video.videoHeight/2;
+    canvas.width = video.videoWidth*0.5; // reduz para agilizar
+    canvas.height = video.videoHeight*0.5;
     ctx.drawImage(video,0,0,canvas.width,canvas.height);
     const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code = jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'dontInvert'});
+    const code = jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'attemptBoth'});
     if(code && code.data){
       const alunoNome = code.data;
       let alunoObj = null;
@@ -208,16 +218,7 @@ function scanQR(){
         });
       });
       if(alunoObj){
-        const loc = code.location;
-        const dx = loc.topRightCorner.x - loc.topLeftCorner.x;
-        const dy = loc.topRightCorner.y - loc.topLeftCorner.y;
-        let deg = Math.atan2(dy,dx)*180/Math.PI;
-        if(deg<0) deg+=360;
-
-        // Mapear ângulo para alternativa, usando arredondamento mais tolerante
-        const idx = Math.floor((deg+45)/90)%4;
-        const alternativa = ['A','B','C','D'][idx];
-
+        const alternativa = mapAngleToAlternative(code);
         alunoObj.resposta = alternativa;
         answerEl.textContent = `${alunoObj.nome} → ${alternativa}`;
         saveData();
@@ -225,7 +226,7 @@ function scanQR(){
       }
     }
   }
-  requestAnimationFrame(scanQR);
+  requestAnimationFrame(scan);
 }
 
 // =======================
