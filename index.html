@@ -1,326 +1,166 @@
-<!doctype html>
-<html lang="pt-br">
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>QR-Quiz — Leitor por orientação (A/B/C/D)</title>
-  <style>
-    :root { --bg:#0b0c10; --card:#111318; --muted:#9aa1ac; --text:#e7e9ee; --accent:#7cd992; }
-    *{box-sizing:border-box}
-    body{margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; background:var(--bg); color:var(--text)}
-    .wrap{max-width:1100px; margin:0 auto; padding:20px;}
-    .grid{display:grid; gap:16px}
-    .card{background:var(--card); border:1px solid #20232a; border-radius:16px; padding:16px; box-shadow: 0 10px 30px rgba(0,0,0,.35)}
-    h1{font-size: clamp(20px, 2.6vw, 34px); margin:0 0 6px}
-    .sub{color:var(--muted); margin:0 0 16px}
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    label{font-size:14px; color:var(--muted)}
-    input[type="text"], select, button{height:40px; border-radius:10px; border:1px solid #2a2f3a; background:#0f1116; color:var(--text); padding:0 12px;}
-    input[type="text"]{min-width:220px}
-    button{cursor:pointer}
-    button.primary{background:linear-gradient(180deg,#2a9d8f,#238b7f); border:0}
-    button.ghost{background:#0f1116}
-    button:disabled{opacity:.5; cursor:not-allowed}
-    .pill{background:#131721; border:1px solid #252a35; border-radius:999px; padding:4px 10px; font-size:12px; color:var(--muted)}
-    .muted{color:var(--muted)}
-    .success{color:var(--accent)}
-
-    .panels{display:grid; grid-template-columns: 1.1fr .9fr; gap:16px}
-    @media (max-width: 900px){ .panels{grid-template-columns:1fr} }
-
-    .video-wrap{position:relative; display:grid; gap:10px}
-    video{width:100%; max-height:54vh; background:#000; border-radius:14px}
-    canvas{width:100%; max-height:54vh; background:#000; border-radius:14px}
-    .overlay{position:absolute; inset:0; pointer-events:none}
-
-    .badge{display:inline-flex; align-items:center; gap:6px; font-size:13px; padding:6px 10px; border-radius:999px; background:#141823; border:1px solid #273047;}
-    .answer{font-size: clamp(42px, 8vw, 84px); font-weight: 900; letter-spacing:.02em;}
-
-    .qr-box{display:flex; flex-direction:column; gap:12px; align-items:flex-start}
-    #qrOut{background: #fff; padding:14px; border-radius:12px}
-    #qrOut canvas, #qrOut img{width:240px; height:240px}
-
-    .foot{margin-top:6px; font-size:12px; color:var(--muted)}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR-Quiz — Gerar e Ler</title>
+<style>
+  body { font-family: Arial; background:#0b0c10; color:#e7e9ee; text-align:center; padding:20px; }
+  button { padding:10px 20px; margin:5px; border:none; border-radius:8px; cursor:pointer; }
+  button.primary { background:#2a9d8f; color:#fff; }
+  button.ghost { background:#111; color:#e7e9ee; border:1px solid #2a9d8f; }
+  input { padding:6px 10px; border-radius:6px; border:1px solid #444; }
+  #qrOut img, #qrOut canvas { width:200px; height:200px; margin-top:10px; }
+  video { width:300px; height:300px; border-radius:12px; background:#000; margin-top:10px; }
+  #answer { font-size: 40px; font-weight:bold; margin-top:10px; color:#7cd992; }
+</style>
 </head>
 <body>
-  <div class="wrap grid">
-    <header>
-      <h1>QR-Quiz — Responda elevando o QR</h1>
-      <p class="sub">Gire o QR no ar para escolher <strong>A / B / C / D</strong>. O leitor detecta a <em>orientação</em> do QR via câmera.</p>
-      <div class="row">
-        <span class="pill">Dica: imprima 1 QR por aluno; o conteúdo pode ser apenas "QUIZ" ou um ID, como "Aluno-23".</span>
-      </div>
-    </header>
 
-    <section class="panels">
-      <div class="card video-wrap">
-        <div class="row">
-          <button id="startBtn" class="primary">📷 Iniciar câmera</button>
-          <button id="stopBtn" class="ghost" disabled>⏹ Parar</button>
-          <label class="row"><input type="checkbox" id="mirrorToggle"> espelhar</label>
-          <label>câmera: <select id="camSelect"></select></label>
-          <span id="status" class="badge">Pronto</span>
-        </div>
+<h1>QR-Quiz — Gerar e Ler</h1>
 
-        <video id="video" playsinline muted></video>
-        <canvas id="canvas" class="overlay" aria-hidden="true"></canvas>
+<div>
+  <h3>Gerar QR Code</h3>
+  <input id="qrText" type="text" placeholder="Texto do QR" value="QUIZ">
+  <button id="genQr" class="primary">Gerar QR</button>
+  <button id="dlQr" class="ghost" disabled>Baixar</button>
+  <div id="qrOut"></div>
+</div>
 
-        <div class="row" style="justify-content:space-between">
-          <div>
-            <div class="muted">Alternativa detectada</div>
-            <div id="answer" class="answer">—</div>
-          </div>
-          <div>
-            <div class="muted">Ângulo</div>
-            <div id="angleRead" class="badge">—</div>
-          </div>
-        </div>
-      </div>
+<hr style="margin:30px 0; border-color:#444;">
 
-      <div class="card">
-        <h3>Gerar seu QR para imprimir</h3>
-        <div class="qr-box">
-          <div class="row">
-            <input id="qrText" type="text" placeholder="Texto do QR (ex.: QUIZ ou Aluno-23)" value="QUIZ"/>
-            <button id="genQr" class="primary">Gerar</button>
-            <button id="dlQr" class="ghost" disabled>Baixar PNG</button>
-            <button id="printQr" class="ghost" disabled>Imprimir</button>
-          </div>
-          <div id="qrOut"></div>
-          <div class="foot">O leitor ignora o conteúdo. Apenas a <strong>rotação</strong> define A/B/C/D:
-            <br>0°→A &nbsp; 90°→B &nbsp; 180°→C &nbsp; 270°→D
-          </div>
-        </div>
-      </div>
-    </section>
+<div>
+  <h3>Ler QR Code e detectar alternativa</h3>
+  <button id="startBtn" class="primary">📷 Abrir câmera</button>
+  <button id="stopBtn" class="ghost" disabled>⏹ Parar</button>
+  <video id="video" playsinline muted></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+  <div id="answer">—</div>
+</div>
 
-    <section class="card">
-      <h3>Como funciona</h3>
-      <ol>
-        <li>Clique em <strong>Iniciar câmera</strong> e permita o acesso. Se disponível, escolha a câmera <em>traseira</em>.</li>
-        <li>Mostre o QR para a câmera. O contorno ficará verde quando for detectado.</li>
-        <li>A orientação (ângulo) é mapeada para A/B/C/D. Segure por 0,4s para confirmar (evita tremidas).</li>
-        <li>Use <em>espelhar</em> se estiver usando câmera frontal e a detecção parecer invertida.</li>
-      </ol>
-      <p class="foot">Se a câmera não abrir a partir de arquivo local, sirva a página via <code>https</code> ou um servidor local (ex.: VSCode Live Server ou <code>python -m http.server</code>).</p>
-    </section>
-  </div>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
 
-  <!-- Dependências: jsQR para leitura; qrcodejs para gerar QR -->
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
-  <script>
-    // ==========================
-    // Utilitários
-    // ==========================
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+<script>
+  // =========================
+  // Gerador QR
+  // =========================
+  const qrOut = document.getElementById('qrOut');
+  let qrInstance = null;
 
-    function setStatus(msg, ok){
-      const el = $('#status');
-      el.textContent = msg;
-      el.style.borderColor = ok ? '#2a9d8f' : '#273047';
-      return el;
-    }
+  document.getElementById('genQr').addEventListener('click', ()=>{
+    qrOut.innerHTML = '';
+    qrInstance = new QRCode(qrOut, {
+      text: document.getElementById('qrText').value || 'QUIZ',
+      width: 200,
+      height: 200,
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    document.getElementById('dlQr').disabled = false;
+  });
 
-    function beep(){
-      try{
-        const ac = new (window.AudioContext || window.webkitAudioContext)();
-        const o = ac.createOscillator();
-        const g = ac.createGain();
-        o.type = 'sine';
-        o.frequency.value = 880; // Lá5
-        o.connect(g); g.connect(ac.destination);
-        g.gain.setValueAtTime(0.0001, ac.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.3, ac.currentTime + 0.01);
-        o.start();
-        o.stop(ac.currentTime + 0.12);
-      }catch(e){}
-    }
+  document.getElementById('dlQr').addEventListener('click', ()=>{
+    const img = qrOut.querySelector('img') || qrOut.querySelector('canvas');
+    const link = document.createElement('a');
+    if(img.tagName === 'IMG') link.href = img.src;
+    else link.href = img.toDataURL();
+    link.download = 'qr.png';
+    link.click();
+  });
 
-    function angleFromCorners(c){
-      // usa vetor topLeft -> topRight
-      const dx = c.topRightCorner.x - c.topLeftCorner.x;
-      const dy = c.topRightCorner.y - c.topLeftCorner.y;
-      let deg = Math.atan2(dy, dx) * 180 / Math.PI; // [-180,180]
-      if (deg < 0) deg += 360; // [0,360)
-      return deg;
-    }
+  // =========================
+  // Leitor QR + Alternativa
+  // =========================
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const answerEl = document.getElementById('answer');
 
-    function mapAngleToAnswer(deg){
-      // mapeia para 0/90/180/270 mais próximo
-      const idx = (Math.round(deg / 90) % 4 + 4) % 4; // 0..3
-      return ['A','B','C','D'][idx];
-    }
+  let stream = null;
+  let rafId = null;
+  const history = [];
+  const HISTORY_N = 12;
+  let confirmed = null;
 
-    // ==========================
-    // Câmera + Leitura
-    // ==========================
-    const video = $('#video');
-    const canvas = $('#canvas');
-    const ctx = canvas.getContext('2d');
-    const startBtn = $('#startBtn');
-    const stopBtn = $('#stopBtn');
-    const camSelect = $('#camSelect');
-    const mirrorToggle = $('#mirrorToggle');
-    const answerEl = $('#answer');
-    const angleRead = $('#angleRead');
+  function angleFromCorners(c){
+    const dx = c.topRightCorner.x - c.topLeftCorner.x;
+    const dy = c.topRightCorner.y - c.topLeftCorner.y;
+    let deg = Math.atan2(dy, dx) * 180/Math.PI;
+    if(deg<0) deg+=360;
+    return deg;
+  }
 
-    let stream = null; let rafId = null; let running = false; let confirmed = null;
-    const history = []; const HISTORY_N = 12; // ~12 frames
+  function mapAngleToAnswer(deg){
+    const idx = Math.round(deg/90)%4;
+    return ['A','B','C','D'][idx];
+  }
 
-    async function listCameras(){
-      try{
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cams = devices.filter(d=>d.kind==='videoinput');
-        camSelect.innerHTML = cams.map((c,i)=>`<option value="${c.deviceId}">${c.label || 'Câmera '+(i+1)}</option>`).join('');
-      }catch(e){ /* ignore */ }
-    }
+  function mostCommon(arr){
+    const m = new Map();
+    for(const v of arr) m.set(v,(m.get(v)||0)+1);
+    let best=null, bestN=0;
+    m.forEach((n,k)=>{ if(n>bestN){best=k;bestN=n;} });
+    return best;
+  }
 
-    async function startCamera(){
-      if (!navigator.mediaDevices?.getUserMedia){
-        setStatus('Navegador sem getUserMedia', false); return;
-      }
-      stopCamera();
-      setStatus('Abrindo câmera...', true);
-      const deviceId = camSelect.value || undefined;
-      const constraints = deviceId ? { video:{ deviceId: { exact: deviceId } } } : { video:{ facingMode: { ideal: 'environment' } } };
-      try{
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream; await video.play();
-        // Ajusta canvas
-        const w = video.videoWidth, h = video.videoHeight;
-        canvas.width = w; canvas.height = h;
-        running = true; stopBtn.disabled = false; startBtn.disabled = true;
-        setStatus('Câmera ativa', true);
-        scanLoop();
-        // popular lista de câmeras (pós-permissão fornece labels)
-        listCameras();
-      }catch(err){
-        console.error(err);
-        setStatus('Falha ao abrir câmera', false);
-      }
-    }
+  function confidence(arr,val){
+    if(!val) return 0;
+    const n = arr.filter(x=>x===val).length;
+    return n/arr.length;
+  }
 
-    function stopCamera(){
-      running = false; startBtn.disabled = false; stopBtn.disabled = true;
-      if (rafId) cancelAnimationFrame(rafId);
-      if (stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
-      setStatus('Parado', false);
-    }
+  function scan(){
+    if(!stream) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
 
-    function drawCorners(corners, ok){
-      ctx.lineWidth = 4; ctx.strokeStyle = ok ? '#3ad07a' : '#e55353';
-      ctx.beginPath();
-      ctx.moveTo(corners.topLeftCorner.x, corners.topLeftCorner.y);
-      ctx.lineTo(corners.topRightCorner.x, corners.topRightCorner.y);
-      ctx.lineTo(corners.bottomRightCorner.x, corners.bottomRightCorner.y);
-      ctx.lineTo(corners.bottomLeftCorner.x, corners.bottomLeftCorner.y);
-      ctx.closePath(); ctx.stroke();
-    }
-
-    function scanLoop(){
-      if (!running) return;
-      // desenha frame
-      ctx.save();
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      if (mirrorToggle.checked){
-        ctx.translate(canvas.width, 0); ctx.scale(-1,1);
-      }
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      ctx.restore();
-
-      try{
-        const img = ctx.getImageData(0,0,canvas.width, canvas.height);
-        const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-        if (code && code.location){
-          const deg = angleFromCorners(code.location);
-          const ans = mapAngleToAnswer(deg);
-          angleRead.textContent = `${deg.toFixed(0)}°`;
-
-          drawCorners(code.location, true);
-
-          // histórico para suavizar
-          history.push(ans);
-          if (history.length > HISTORY_N) history.shift();
-          const stable = mostCommon(history);
-
-          // confirma quando 60% dos últimos HISTORY_N frames são iguais
-          const conf = confidence(history, stable);
-          if (conf >= 0.6 && stable !== confirmed){
-            confirmed = stable; answerEl.textContent = confirmed; beep();
-            if (window.navigator.vibrate) window.navigator.vibrate(60);
-          }
-        } else {
-          drawNoCode();
+    try{
+      const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+      const code = jsQR(imgData.data,imgData.width,imgData.height);
+      if(code && code.location){
+        const deg = angleFromCorners(code.location);
+        const ans = mapAngleToAnswer(deg);
+        history.push(ans);
+        if(history.length>HISTORY_N) history.shift();
+        const stable = mostCommon(history);
+        if(confidence(history,stable)>=0.6 && stable!==confirmed){
+          confirmed = stable;
+          answerEl.textContent = confirmed;
         }
-      }catch(e){ /* ignore frame errors */ }
+      } else {
+        history.length = 0;
+        answerEl.textContent = '—';
+      }
+    }catch(e){}
+    rafId = requestAnimationFrame(scan);
+  }
 
-      rafId = requestAnimationFrame(scanLoop);
-    }
+  async function startCamera(){
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    video.srcObject = stream;
+    await video.play();
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    scan();
+  }
 
-    function drawNoCode(){
-      angleRead.textContent = '—';
-      ctx.lineWidth = 3; ctx.strokeStyle = '#5d6474';
-      const m = Math.min(canvas.width, canvas.height);
-      ctx.strokeRect((canvas.width-m)/2 + 0.5, (canvas.height-m)/2 + 0.5, m-1, m-1);
-    }
+  function stopCamera(){
+    if(stream) stream.getTracks().forEach(t=>t.stop());
+    stream=null;
+    startBtn.disabled=false;
+    stopBtn.disabled=true;
+    cancelAnimationFrame(rafId);
+    answerEl.textContent='—';
+    history.length=0;
+    confirmed=null;
+  }
 
-    function mostCommon(arr){
-      const m = new Map();
-      for (const v of arr){ m.set(v, (m.get(v)||0)+1); }
-      let best=null, bestN=0; m.forEach((n,k)=>{ if(n>bestN){best=k;bestN=n;} });
-      return best;
-    }
-    function confidence(arr, val){
-      if (!val) return 0; const n = arr.filter(x=>x===val).length; return n/arr.length;
-    }
+  startBtn.addEventListener('click', startCamera);
+  stopBtn.addEventListener('click', stopCamera);
+</script>
 
-    startBtn.addEventListener('click', startCamera);
-    stopBtn.addEventListener('click', stopCamera);
-
-    // Tenta pré-listar câmeras (pode não mostrar nomes sem permissão)
-    if (navigator.mediaDevices?.enumerateDevices){ listCameras(); }
-
-    // ==========================
-    // Gerador de QR
-    // ==========================
-    const qrText = $('#qrText');
-    const genQr = $('#genQr');
-    const dlQr = $('#dlQr');
-    const printQr = $('#printQr');
-    const qrOut = $('#qrOut');
-    let qrInstance = null;
-
-    function generateQR(){
-      qrOut.innerHTML = '';
-      qrInstance = new QRCode(qrOut, { text: qrText.value || 'QUIZ', width: 240, height: 240, correctLevel: QRCode.CorrectLevel.H });
-      dlQr.disabled = false; printQr.disabled = false;
-    }
-
-    function downloadQR(){
-      const img = qrOut.querySelector('img') || qrOut.querySelector('canvas');
-      if (!img) return;
-      let dataURL = '';
-      if (img.tagName.toLowerCase()==='img') dataURL = img.src;
-      else dataURL = img.toDataURL('image/png');
-      const a = document.createElement('a'); a.href = dataURL; a.download = `qr-${(qrText.value||'quiz').toLowerCase()}.png`; a.click();
-    }
-
-    function printQR(){
-      const w = window.open('', 'printqr');
-      const src = (qrOut.querySelector('img')?.src) || (qrOut.querySelector('canvas')?.toDataURL('image/png'));
-      w.document.write(`<img src="${src}" style="width:380px;height:380px"/>`);
-      w.document.close(); w.focus(); w.print(); w.close();
-    }
-
-    genQr.addEventListener('click', generateQR);
-    dlQr.addEventListener('click', downloadQR);
-    printQr.addEventListener('click', printQR);
-
-    // gerar um padrão inicial
-    generateQR();
-  </script>
 </body>
 </html>
