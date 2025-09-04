@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR Quiz Dinâmico</title>
 <style>
-:root {
-  --bg:#0b0c10; --card:#111318; --muted:#9aa1ac; --text:#e7e9ee; --accent:#7cd992;
-}
+:root { --bg:#0b0c10; --card:#111318; --muted:#9aa1ac; --text:#e7e9ee; --accent:#7cd992; }
 body{margin:0;font-family:system-ui;background:var(--bg);color:var(--text);}
 .wrap{max-width:1200px;margin:0 auto;padding:20px;}
 .card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:16px;}
@@ -87,12 +85,14 @@ let data = JSON.parse(localStorage.getItem('qrquizData')) || { turmas: [] };
 // Utilitários
 // =======================
 function saveData(){ localStorage.setItem('qrquizData', JSON.stringify(data)); }
+
 function updateTurmas(){
   const turmaSelect = document.getElementById('turmaSelect');
   turmaSelect.innerHTML = data.turmas.map((t,i)=>`<option value="${i}">${t.nome}</option>`).join('');
   document.getElementById('turmasList').innerHTML = data.turmas.map(t=>`<div>${t.nome}</div>`).join('');
   updateAlunos();
 }
+
 function updateAlunos(){
   const turmaIndex = document.getElementById('turmaSelect').value;
   const alunoSelect = document.getElementById('alunoSelect');
@@ -107,6 +107,7 @@ function updateAlunos(){
   });
   updateRespostas();
 }
+
 function updateRespostas(){
   const resDiv = document.getElementById('respostas');
   resDiv.innerHTML = '';
@@ -140,7 +141,7 @@ document.getElementById('addAluno').addEventListener('click',()=>{
 });
 
 // =======================
-// Gerar QR
+// Gerar QR com letras A/B/C/D visíveis
 // =======================
 let qrInstance = null;
 document.getElementById('genQr').addEventListener('click',()=>{
@@ -148,61 +149,33 @@ document.getElementById('genQr').addEventListener('click',()=>{
   const alunoIndex = document.getElementById('alunoSelect').value;
   if(turmaIndex===null || alunoIndex===null) return alert('Selecione aluno');
   const aluno = data.turmas[turmaIndex].alunos[alunoIndex];
-  // Conteúdo do QR = nome do aluno
+
+  // Limpar container
   const qrOut = document.getElementById('qrOut');
   qrOut.innerHTML='';
+
+  // Gerar QR padrão com nome do aluno
   qrInstance = new QRCode(qrOut,{ text: aluno.nome, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.H });
   aluno.qr = aluno.nome;
   saveData();
   updateAlunos();
-});
-try {
-  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
 
-  if (code && code.location && code.data) {
-    const alunoNome = code.data; // o texto do QR (ex.: "Leonardo")
-    
-    // buscar o aluno no cadastro
-    let alunoObj = null;
-    data.turmas.forEach(t => {
-      t.alunos.forEach(a => {
-        if (a.nome === alunoNome) alunoObj = a;
-      });
-    });
-
-    if (alunoObj) {
-      // cálculo do ângulo correto
-      const loc = code.location;
-      const dx = loc.topRightCorner.x - loc.topLeftCorner.x;
-      const dy = loc.topRightCorner.y - loc.topLeftCorner.y;
-      let deg = Math.atan2(dy, dx) * 180 / Math.PI; // [-180,180]
-      if (deg < 0) deg += 360; // [0,360)
-
-      // mapear ângulo para A/B/C/D
-      const idx = Math.round(deg / 90) % 4;
-      const alternativa = ['A', 'B', 'C', 'D'][idx];
-
-      // registrar resposta do aluno
-      alunoObj.resposta = alternativa;
-      answerEl.textContent = `${alunoObj.nome} → ${alternativa}`;
-
-      saveData();
-      updateRespostas();
-    }
-
-    // desenhar contorno verde
-    drawCorners(code.location, true);
-    angleRead.textContent = `${deg.toFixed(0)}°`;
-
-  } else {
-    drawNoCode();
+  // Adicionar letras nos quatro lados visualmente
+  const canvasEl = qrOut.querySelector('canvas');
+  if(canvasEl){
+    const ctx = canvasEl.getContext('2d');
+    ctx.fillStyle = 'red';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('A', 100, 10);   // topo
+    ctx.fillText('B', 190, 100);  // direita
+    ctx.fillText('C', 100, 190);  // baixo
+    ctx.fillText('D', 10, 100);   // esquerda
   }
-} catch(e){ /* ignorar erros de frame */ }
-
+});
 
 // =======================
-// Leitura QR
+// Leitura QR dinâmica
 // =======================
 const video = document.getElementById('video');
 const canvas = document.createElement('canvas');
@@ -214,20 +187,20 @@ async function startCamera(){
   if(!navigator.mediaDevices.getUserMedia) return alert('Sem getUserMedia');
   stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }});
   video.srcObject = stream;
-  requestAnimationFrame(scan);
+  requestAnimationFrame(scanQR);
 }
 startCamera();
 
-function scan(){
+function scanQR(){
   if(video.readyState===video.HAVE_ENOUGH_DATA){
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    // reduzir tamanho do canvas para agilizar leitura
+    canvas.width = video.videoWidth/2;
+    canvas.height = video.videoHeight/2;
     ctx.drawImage(video,0,0,canvas.width,canvas.height);
     const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
     const code = jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'dontInvert'});
     if(code && code.data){
       const alunoNome = code.data;
-      // achar aluno cadastrado
       let alunoObj = null;
       data.turmas.forEach(t=>{
         t.alunos.forEach(a=>{
@@ -235,14 +208,16 @@ function scan(){
         });
       });
       if(alunoObj){
-        // Determinar alternativa pela posição
         const loc = code.location;
         const dx = loc.topRightCorner.x - loc.topLeftCorner.x;
         const dy = loc.topRightCorner.y - loc.topLeftCorner.y;
         let deg = Math.atan2(dy,dx)*180/Math.PI;
         if(deg<0) deg+=360;
-        const idx = Math.round(deg/90)%4;
+
+        // Mapear ângulo para alternativa, usando arredondamento mais tolerante
+        const idx = Math.floor((deg+45)/90)%4;
         const alternativa = ['A','B','C','D'][idx];
+
         alunoObj.resposta = alternativa;
         answerEl.textContent = `${alunoObj.nome} → ${alternativa}`;
         saveData();
@@ -250,7 +225,7 @@ function scan(){
       }
     }
   }
-  requestAnimationFrame(scan);
+  requestAnimationFrame(scanQR);
 }
 
 // =======================
