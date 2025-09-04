@@ -1,222 +1,299 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QR Quiz Manager</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QR-Quiz — Sistema Completo</title>
 <style>
-body{margin:0;font-family:sans-serif;background:#0b0c10;color:#e7e9ee;}
-.wrap{max-width:1200px;margin:auto;padding:20px;}
-.card{background:#111318;padding:16px;border-radius:16px;margin-bottom:20px;}
-h1,h2,h3{margin-bottom:10px;}
-button{padding:6px 12px;margin-left:6px;border-radius:8px;border:none;cursor:pointer;}
-button.primary{background:#2a9d8f;color:#fff;}
-button.ghost{background:#0f1116;color:#fff;border:1px solid #252a35;}
-input,select{padding:6px;border-radius:8px;border:1px solid #2a2f3a;background:#0f1116;color:#e7e9ee;}
-#video,#canvas{width:100%;max-height:360px;background:#000;border-radius:12px;}
-.answer{font-size:1.5rem;font-weight:900;}
-.list-item{display:flex;justify-content:space-between;margin-bottom:4px;padding:4px 6px;border-radius:6px;background:#141823;}
+:root{--bg:#0b0c10;--card:#111318;--muted:#9aa1ac;--text:#e7e9ee;--accent:#7cd992}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";background:var(--bg);color:var(--text)}
+.wrap{max-width:1200px;margin:0 auto;padding:20px;}
+.grid{display:grid;gap:16px}
+.card{background:var(--card);border:1px solid #20232a;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+h1{font-size:clamp(20px,2.6vw,34px);margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label{font-size:14px;color:var(--muted)}
+input[type="text"],select,button{height:40px;border-radius:10px;border:1px solid #2a2f3a;background:#0f1116;color:var(--text);padding:0 12px}
+button{cursor:pointer}
+button.primary{background:linear-gradient(180deg,#2a9d8f,#238b7f);border:0}
+button.ghost{background:#0f1116}
+button:disabled{opacity:.5;cursor:not-allowed}
+.pill{background:#131721;border:1px solid #252a35;border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted)}
+.muted{color:var(--muted)}
+.success{color:var(--accent)}
+.list-item{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.video-wrap{position:relative;display:grid;gap:10px}
+video{width:100%;max-height:54vh;background:#000;border-radius:14px}
+canvas{width:100%;max-height:54vh;background:#000;border-radius:14px}
+.overlay{position:absolute;inset:0;pointer-events:none}
+.answer{font-size:clamp(42px,8vw,84px);font-weight:900;letter-spacing:.02em}
 </style>
 </head>
 <body>
-<div class="wrap">
-<h1>QR Quiz Manager</h1>
+<div class="wrap grid">
+<header>
+<h1>QR-Quiz Completo</h1>
+<p class="sub">Cadastre turmas, alunos, gere QR e registre respostas via câmera.</p>
+</header>
 
-<!-- Turmas -->
-<div class="card">
+<section class="card">
 <h3>Turmas</h3>
 <div class="row">
-<input id="newClass" placeholder="Nome da turma">
+<input type="text" id="className" placeholder="Nome da turma">
 <button id="addClass" class="primary">Adicionar Turma</button>
+<select id="classSelect"></select>
 </div>
-<div id="classList"></div>
-</div>
+</section>
 
-<!-- Alunos -->
-<div class="card" id="studentCard" style="display:none;">
-<h3>Alunos da turma: <span id="currentClass"></span></h3>
+<section class="card">
+<h3>Alunos</h3>
 <div class="row">
-<input id="newStudent" placeholder="Nome do aluno">
+<input type="text" id="studentName" placeholder="Nome do aluno">
 <button id="addStudent" class="primary">Adicionar Aluno</button>
 </div>
 <div id="studentList"></div>
-</div>
+</section>
 
-<!-- Leitor QR -->
-<div class="card">
-<h3>Leitor de QR</h3>
+<section class="card">
+<h3>Gerar QR do aluno</h3>
 <div class="row">
-<button id="startCam" class="primary">📷 Iniciar câmera</button>
-<button id="stopCam" class="ghost" disabled>⏹ Parar câmera</button>
-<label>Lado do QR define alternativa:
-<select id="sideSelect">
-<option value="A">Lado A</option>
-<option value="B">Lado B</option>
-<option value="C">Lado C</option>
-<option value="D">Lado D</option>
-</select></label>
+<button id="genStudentQR" class="primary">Gerar QR</button>
+<button id="dlStudentQR" class="ghost" disabled>Baixar PNG</button>
+</div>
+<div id="qrOut"></div>
+</section>
+
+<section class="card video-wrap">
+<h3>Leitura de QR</h3>
+<div class="row">
+<button id="startBtn" class="primary">📷 Iniciar câmera</button>
+<button id="stopBtn" class="ghost" disabled>⏹ Parar</button>
+<label><input type="checkbox" id="mirrorToggle"> Espelhar</label>
+<select id="camSelect"></select>
 </div>
 <video id="video" playsinline muted></video>
-<canvas id="canvas" aria-hidden="true"></canvas>
-<div>Alternativa detectada: <span id="detected" class="answer">—</span></div>
-<div>Alunos que ainda não responderam:</div>
-<div id="pendingList"></div>
+<canvas id="canvas" class="overlay" aria-hidden="true"></canvas>
+<div class="row" style="justify-content:space-between">
+<div>
+<div class="muted">Aluno detectado</div>
+<div id="detected" class="answer">—</div>
 </div>
+<div>
+<div class="muted">Alternativa</div>
+<div id="altRead" class="answer">—</div>
+</div>
+</div>
+</section>
+
+<section class="card">
+<h3>Alunos Pendentes</h3>
+<div id="pendingList"></div>
+</section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
-
 <script>
-// ========== Dados e Persistência ==========
-let data = JSON.parse(localStorage.getItem('qrQuizData')) || {classes:[]};
+// ============================
+// Dados
+// ============================
+let data = { classes: [] };
+const classSelect = document.getElementById('classSelect');
+const studentList = document.getElementById('studentList');
+const pendingList = document.getElementById('pendingList');
+const qrOut = document.getElementById('qrOut');
+const detected = document.getElementById('detected');
+const altRead = document.getElementById('altRead');
 let currentClassIndex = null;
-function saveData(){ localStorage.setItem('qrQuizData', JSON.stringify(data)); }
+let currentStudentIndex = null;
+let qrInstance = null;
 
-// ========== Turmas ==========
-const classList = document.getElementById('classList');
-const newClass = document.getElementById('newClass');
-const addClassBtn = document.getElementById('addClass');
-const studentCard = document.getElementById('studentCard');
-const currentClassSpan = document.getElementById('currentClass');
+// ============================
+// LocalStorage
+// ============================
+function saveData(){ localStorage.setItem('qrquiz', JSON.stringify(data)); }
+function loadData(){ 
+  const d = localStorage.getItem('qrquiz');
+  if(d) data=JSON.parse(d); 
+  renderClasses(); 
+}
+
+// ============================
+// Turmas
+// ============================
+document.getElementById('addClass').addEventListener('click',()=>{
+  const name=document.getElementById('className').value.trim();
+  if(!name) return;
+  data.classes.push({name, students:[]});
+  document.getElementById('className').value='';
+  saveData(); renderClasses();
+});
 
 function renderClasses(){
-  classList.innerHTML = '';
-  data.classes.forEach((c,i)=>{
-    const div=document.createElement('div');
-    div.className='list-item';
-    div.innerHTML=`<span>${c.name}</span>
-      <span>
-      <button class="ghost" onclick="selectClass(${i})">Abrir</button>
-      <button class="ghost" onclick="deleteClass(${i})">Excluir</button>
-      </span>`;
-    classList.appendChild(div);
-  });
-}
-function addClass(){
-  if(!newClass.value.trim()) return;
-  data.classes.push({name:newClass.value.trim(), students:[]});
-  newClass.value='';
-  saveData();
-  renderClasses();
-}
-function selectClass(i){
-  currentClassIndex=i;
-  studentCard.style.display='block';
-  currentClassSpan.textContent=data.classes[i].name;
+  classSelect.innerHTML = data.classes.map((c,i)=>`<option value="${i}">${c.name}</option>`).join('');
+  currentClassIndex = classSelect.value!=='' ? Number(classSelect.value) : null;
   renderStudents();
   renderPending();
 }
-function deleteClass(i){
-  if(confirm('Excluir turma?')) {
-    data.classes.splice(i,1);
-    saveData();
-    renderClasses();
-    studentCard.style.display='none';
-  }
-}
-addClassBtn.addEventListener('click',addClass);
-renderClasses();
 
-// ========== Alunos ==========
-const studentList = document.getElementById('studentList');
-const newStudent = document.getElementById('newStudent');
+classSelect.addEventListener('change',()=>{
+  currentClassIndex = Number(classSelect.value);
+  renderStudents();
+  renderPending();
+});
+
+// ============================
+// Alunos
+// ============================
+document.getElementById('addStudent').addEventListener('click',()=>{
+  const name=document.getElementById('studentName').value.trim();
+  if(!name || currentClassIndex===null) return;
+  data.classes[currentClassIndex].students.push({name, qrText: name, answered: null});
+  document.getElementById('studentName').value='';
+  saveData();
+  renderStudents();
+  renderPending();
+});
+
 function renderStudents(){
   studentList.innerHTML='';
   if(currentClassIndex===null) return;
   data.classes[currentClassIndex].students.forEach((s,i)=>{
     const div=document.createElement('div');
     div.className='list-item';
-    div.innerHTML=`<span>${s.name}</span>
+    div.innerHTML=`<span>${s.name} ${s.answered ? `(Resposta: ${s.answered})` : ''}</span>
       <span>
-      <button class="ghost" onclick="generateQR(${i})">QR</button>
+        <button class="ghost" onclick="generateQR(${i})">Gerar QR</button>
+        ${s.answered ? `<button class="ghost" onclick="resetAnswer(${i})">Refazer Resposta</button>` : ''}
       </span>`;
     studentList.appendChild(div);
   });
 }
-function addStudent(){
+
+function resetAnswer(i){
   if(currentClassIndex===null) return;
-  if(!newStudent.value.trim()) return;
-  const id='student-'+Date.now();
-  data.classes[currentClassIndex].students.push({name:newStudent.value.trim(), id:id, answered:null});
-  newStudent.value='';
+  data.classes[currentClassIndex].students[i].answered=null;
   saveData();
   renderStudents();
   renderPending();
+  detected.textContent='—';
+  altRead.textContent='—';
 }
-document.getElementById('addStudent').addEventListener('click',addStudent);
 
-// ========== QR Code ==========
+// ============================
+// QR Code
+// ============================
 function generateQR(i){
-  const student = data.classes[currentClassIndex].students[i];
-  const qrWindow = window.open('', 'QR','width=250,height=250');
-  qrWindow.document.write(`<h3>${student.name}</h3>`);
-  const div=qrWindow.document.createElement('div');
-  qrWindow.document.body.appendChild(div);
-  new QRCode(div,{text:student.id,width:200,height:200,correctLevel:QRCode.CorrectLevel.H});
+  if(currentClassIndex===null) return;
+  const s = data.classes[currentClassIndex].students[i];
+  qrOut.innerHTML='';
+  qrInstance = new QRCode(qrOut,{text:s.qrText,width:240,height:240,correctLevel:QRCode.CorrectLevel.H});
+  document.getElementById('dlStudentQR').disabled=false;
 }
 
-// ========== Pendentes ==========
-const pendingList=document.getElementById('pendingList');
+document.getElementById('dlStudentQR').addEventListener('click',()=>{
+  const img=qrOut.querySelector('img')||qrOut.querySelector('canvas');
+  if(!img) return;
+  let dataURL = img.tagName==='IMG'? img.src : img.toDataURL('image/png');
+  const a=document.createElement('a');
+  a.href=dataURL; a.download='qr-'+Date.now()+'.png'; a.click();
+});
+
+// ============================
+// Pendentes
+// ============================
 function renderPending(){
   pendingList.innerHTML='';
   if(currentClassIndex===null) return;
-  const pending=data.classes[currentClassIndex].students.filter(s=>!s.answered);
-  pending.forEach(s=>{
+  const pend = data.classes[currentClassIndex].students.filter(s=>!s.answered);
+  pend.forEach(s=>{
     const div=document.createElement('div');
     div.textContent=s.name;
     pendingList.appendChild(div);
   });
 }
 
-// ========== Leitura QR ==========
+// ============================
+// Leitura QR
+// ============================
 const video=document.getElementById('video');
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
-const startCam=document.getElementById('startCam');
-const stopCam=document.getElementById('stopCam');
-const detected=document.getElementById('detected');
-const sideSelect=document.getElementById('sideSelect');
+const startBtn=document.getElementById('startBtn');
+const stopBtn=document.getElementById('stopBtn');
+const camSelect=document.getElementById('camSelect');
+const mirrorToggle=document.getElementById('mirrorToggle');
 
-let stream=null;
-let rafId=null;
+let stream=null; let rafId=null; let running=false;
 
-startCam.addEventListener('click',async ()=>{
-  if(!navigator.mediaDevices?.getUserMedia){ alert('Navegador não suporta câmera'); return; }
-  stopCam.disabled=false; startCam.disabled=true;
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-  video.srcObject=stream; await video.play();
-  canvas.width=video.videoWidth; canvas.height=video.videoHeight;
-  scanLoop();
-});
+async function listCameras(){
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cams = devices.filter(d=>d.kind==='videoinput');
+  camSelect.innerHTML = cams.map((c,i)=>`<option value="${c.deviceId}">${c.label||'Câmera '+(i+1)}</option>`).join('');
+}
 
-stopCam.addEventListener('click', ()=>{
-  startCam.disabled=false; stopCam.disabled=true;
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+async function startCamera(){
+  stopCamera();
+  const deviceId=camSelect.value||undefined;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({video: deviceId?{deviceId:{exact:deviceId}}:{facingMode:'environment'}});
+    video.srcObject=stream; await video.play();
+    canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+    running=true;
+    stopBtn.disabled=false; startBtn.disabled=true;
+    scanLoop();
+    listCameras();
+  }catch(e){console.error(e);}
+}
+
+function stopCamera(){
+  running=false; startBtn.disabled=false; stopBtn.disabled=true;
   if(rafId) cancelAnimationFrame(rafId);
-});
+  if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null;
+}
 
 function scanLoop(){
-  if(!video.videoWidth){ rafId=requestAnimationFrame(scanLoop); return; }
+  if(!running) return;
+  ctx.save(); ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(mirrorToggle.checked){ctx.translate(canvas.width,0);ctx.scale(-1,1);}
   ctx.drawImage(video,0,0,canvas.width,canvas.height);
-  const img=ctx.getImageData(0,0,canvas.width,canvas.height);
-  const code=jsQR(img.data,img.width,img.height);
-  if(code){
-    const student=findStudentById(code.data);
-    if(student && !student.answered){
-      student.answered=sideSelect.value;
-      saveData();
-      detected.textContent=`${student.name}: ${student.answered}`;
-      renderPending();
+  ctx.restore();
+  try{
+    const img = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const code = jsQR(img.data,img.width,img.height);
+    if(code){
+      ctx.lineWidth=4; ctx.strokeStyle='#3ad07a';
+      const l=code.location;
+      ctx.beginPath();
+      ctx.moveTo(l.topLeftCorner.x,l.topLeftCorner.y);
+      ctx.lineTo(l.topRightCorner.x,l.topRightCorner.y);
+      ctx.lineTo(l.bottomRightCorner.x,l.bottomRightCorner.y);
+      ctx.lineTo(l.bottomLeftCorner.x,l.bottomLeftCorner.y);
+      ctx.closePath(); ctx.stroke();
+
+      const qrText = code.data;
+      detected.textContent=qrText;
+
+      // Aqui o professor define manualmente qual alternativa está mostrando
+      const alt = prompt(`Aluno "${qrText}" respondeu qual alternativa? (a,b,c,d)`).toUpperCase();
+      altRead.textContent=alt;
+
+      // Registra resposta
+      if(currentClassIndex!==null){
+        const s = data.classes[currentClassIndex].students.find(st=>st.qrText===qrText);
+        if(s && !s.answered){ s.answered=alt; saveData(); renderStudents(); renderPending(); }
+      }
     }
-  }
+  }catch(e){}
   rafId=requestAnimationFrame(scanLoop);
 }
 
-function findStudentById(id){
-  if(currentClassIndex===null) return null;
-  return data.classes[currentClassIndex].students.find(s=>s.id===id);
-}
+startBtn.addEventListener('click',startCamera);
+stopBtn.addEventListener('click',stopCamera);
+if(navigator.mediaDevices?.enumerateDevices) listCameras();
+loadData();
 </script>
 </body>
 </html>
